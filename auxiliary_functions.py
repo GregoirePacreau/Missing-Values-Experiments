@@ -119,7 +119,7 @@ def find_sparse_orthogonal(u, s=5, max_iter=1000):
             break
     return best_vector
 
-def contaminate_adversarial(X, sigma, s=5, max_iter=1e3):
+def contaminate_adversarial(X, sigma, epsilon=0.05, max_iter=1e3):
     """
     Adversarial contamination of X based on sparse vectors orthogonal to the first eigenspace of sigma.
 
@@ -139,8 +139,8 @@ def contaminate_adversarial(X, sigma, s=5, max_iter=1e3):
 
     """
     u,d,v = numpy.linalg.svd(sigma)
-
-    theta_adv = find_sparse_orthogonal(v[0], s=5, max_iter=1e5)
+    s = int(len(v[0]) * epsilon)
+    theta_adv = find_sparse_orthogonal(v[0], s=s, max_iter=1e5)
     sigma_norm = numpy.linalg.norm(sigma)
 
     contaminated_row_mask = numpy.random.binomial(n=1, p=0.05, size=X.shape[0])
@@ -197,11 +197,10 @@ def get_proj(sigma, index):
     v = numpy.linalg.svd(sigma)[2][index]
     return numpy.outer(v, v.T)
 
-def bernoulli_exp():
-    
-    return 1
-
-def adv_exp(n=500, p=100, epsilons=numpy.linspace(0.01, 0.2, 10), delta=0.9, M=100, e_rank=5, threshold_ratio=2, add_robust=False, eigen_index=None):
+def bernoulli_exp(n=500, p=100, epsilons=numpy.linspace(0.01, 0.2, 10), 
+                    delta=0.9, M=100, e_rank=5, threshold_ratio=2, 
+                    add_robust=False, eigen_index=None):
+    # List of all the models used during this experiment
     error_classical = []
     std_classical = []
     error_robust = []
@@ -228,7 +227,114 @@ def adv_exp(n=500, p=100, epsilons=numpy.linspace(0.01, 0.2, 10), delta=0.9, M=1
             if eigen_index is not None:
                 true_proj = numpy.outer(v[eigen_index], v[eigen_index].T)
 
-            X_noisy = contaminate_adversarial(X, sigma)
+            X_noisy = contaminate_bernoulli(X, epsilon)
+
+            # Computing covariance matrices
+            sigma_hat = MV_estimator(X_noisy, delta=delta)
+            sigma_thresh = MV_thresholding_estimator(X_noisy)
+            # robust MinCovDet estimator of sklearn, with high support fraction
+            if add_robust:
+                sigma_robust = MinCovDet(support_fraction=0.9, assume_centered=True).fit(X_noisy).covariance_
+     
+            if eigen_index is None:
+                error_of_classic_cov = numpy.linalg.norm(sigma - numpy.cov(X_noisy.T, bias=True))
+                if add_robust:
+                    error_of_robust_cov = numpy.linalg.norm(sigma - sigma_robust)
+                error_to_truth = numpy.linalg.norm(sigma - sigma_hat)
+                error_thresh_to_truth = numpy.linalg.norm(sigma - sigma_thresh)
+            else:
+                proj_thresh = get_proj(sigma_thresh, eigen_index)
+                proj_hat = get_proj(sigma_hat, eigen_index)
+
+                #computing errors
+                error_of_classic_cov = numpy.linalg.norm(true_proj - get_proj(numpy.cov(X_noisy.T, bias=True), eigen_index))
+                if add_robust:
+                    proj_robust = get_proj(sigma_robust, eigen_index)
+                    error_of_robust_cov = numpy.linalg.norm(true_proj - proj_robust)
+                error_to_truth = numpy.linalg.norm(true_proj - proj_hat)
+                error_thresh_to_truth = numpy.linalg.norm(true_proj - proj_thresh)
+
+            #appending errors to arrays
+            classical.append(error_of_classic_cov)
+            if add_robust:
+                robust.append(error_of_robust_cov)
+            MV.append(error_to_truth)
+            thresh.append(error_thresh_to_truth)
+      
+        #computing means and std of each arrays
+        error_classical.append(numpy.mean(classical))
+        std_classical.append(numpy.std(classical))
+        if add_robust:
+            error_robust.append(numpy.mean(robust))
+            std_robust.append(numpy.std(robust))
+        error_MV.append(numpy.mean(MV))
+        std_MV.append(numpy.std(MV))
+        error_thresh.append(numpy.mean(thresh))
+        std_thresh.append(numpy.std(thresh))
+
+    # formatting for plots
+    error_classical = numpy.array(error_classical)
+    std_classical = numpy.array(std_classical)
+    if add_robust:
+        error_robust = numpy.array(error_robust)
+        std_robust = numpy.array(std_robust)
+    error_MV = numpy.array(error_MV)
+    std_MV = numpy.array(std_MV)
+    error_thresh = numpy.array(error_thresh)
+    std_thresh = numpy.std(std_thresh)
+
+    #plots
+    fig, axs = plt.subplots(figsize=(10, 8))
+    axs.plot(epsilons, error_classical, color='r')
+    axs.fill_between(epsilons, (error_classical-std_classical), (error_classical+std_classical), color='r', alpha=.1)
+    if add_robust:
+        axs.plot(epsilons, error_robust, color='g')
+        axs.fill_between(epsilons, (error_robust-std_robust), (error_robust+std_robust), color='g', alpha=.1)
+    axs.plot(epsilons, error_MV, color='b')
+    axs.fill_between(epsilons, (error_MV-std_MV), (error_MV+std_MV), color='b', alpha=.1)
+    axs.plot(epsilons, error_thresh, 'c')
+    axs.fill_between(epsilons, (error_thresh-std_thresh), (error_thresh+std_thresh), color='c', alpha=.1)
+    axs.set_xlabel("Probability that a cell is contaminated")
+    axs.set_ylabel("Frobenius error")
+    if add_robust:
+        axs.legend(["classical estimator", "Robust estimator", "MV estimator", "MV estimator with thresholding"])
+    else:
+        axs.legend(["classical estimator", "MV estimator", "MV estimator with thresholding"])
+    if eigen_index is not None:
+        axs.set_title("Frobenius error on {}th projector".format(eigen_index))
+    else:
+        axs.set_title("Forbenius error on covariance matrix estimations")
+    plt.show()
+
+def adv_exp(n=500, p=100, epsilons=numpy.linspace(0.01, 0.2, 10), delta=0.9, M=100, e_rank=5, threshold_ratio=2, add_robust=False, eigen_index=None):
+    # List of all the models used during this experiment
+    error_classical = []
+    std_classical = []
+    error_robust = []
+    std_robust = []
+    error_thresh = []
+    std_thresh = []
+    error_MV = []
+    std_MV = []
+
+    for epsilon in tqdm(epsilons):
+
+        classical = []
+        robust = []
+        MV = []
+        thresh = []
+
+        for k in range(M):
+            # case where contamination is set at a constant value that is larger than a threshold
+            sigma, eigen = low_rank(e_rank, p, n)
+            X = numpy.random.multivariate_normal(n,p,sigma)
+
+            # Finding sparse perturbation along orthogonal vector to first eigenvector
+            u,s,v = numpy.linalg.svd(sigma)
+            if eigen_index is not None:
+                true_proj = numpy.outer(v[eigen_index], v[eigen_index].T)
+
+            X_noisy = contaminate_adversarial(X, sigma, epsilon=epsilon)
 
             # Computing covariance matrices
             sigma_hat = MV_estimator(X_noisy, delta=delta)
