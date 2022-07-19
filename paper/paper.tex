@@ -1,0 +1,266 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{xspace}
+\usepackage{amssymb}
+\usepackage{nicefrac}
+\usepackage{bm}
+
+\usepackage{fullpage} % for convenience when writing, to be removed for proper editing
+
+% Importing all custom notations
+\input{notations.tex}
+
+% Theorem definition
+\newtheorem{theorem}{Theorem}
+\newtheorem{definition}{Definition}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}[theorem]
+\newtheorem{lemma}{Lemma}[theorem]
+
+% changing equation numbering
+\numberwithin{equation}{section}
+
+\title{Covariance estimation with missing observation}
+\author{Karim Lounici \and Grégoire Pacreau}
+\date{March 2022}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+
+Let $X, X_1, \dots, X_n$ be i.i.d. zero mean vectors with unknown covariance matrix $\covariance = \expectancy\left[ X \bigotimes X \right]$. Our objective is to estimate the unknown covariance matrix \covariance when the vectors $X_1, \dots, X_n$ are partially observed, that is, when some of their components are not observed. More precisely, we consider the following framework. Denote by $X_i^{(j)}$ the $j$th component of the vector $X_i$. We assume taht each component $X_i^{(j)}$ is observed independently with probability $\bernoulli \in (0,1]$.
+
+\begin{equation}
+    Y_i^{(j)} = \bernoulli_{i,j}X_i^{(j)}, \qquad 1 \leq i \leq n, 1\leq j\leq p
+\end{equation}
+We can think of the $\bernoulli_{i,j}$ as masked variables. If $\delta_{i,j} = 0$, then we cannot observe the $j$th component of $X_i$ and the default value $0$ is assigned to $Y_i^{(j)}$. Our goal is to estimate \covariance given the partial observations $Y_1, \dots, Y_n$. This problem has been previously studied in \cite{louniciHighdimensionalCovarianceMatrix2014}, albeit with less sharp bounds than those presented in this paper. Furthermore, this paper applies the techniques of \cite{louniciHighdimensionalCovarianceMatrix2014} to build robust estimators countering cell-wise contamination of features.
+
+For example of interest in missing values in reinforcement learning: paper by scornet, josse, prost and varoquaux.
+
+
+\section{Tools and definitions}
+
+    \subsection{Sub-exponential random vectors}
+    
+    We recall the definition and some basic properties of sub-exponential random vectors.
+    
+    \begin{definition}
+    For any $\alpha \geq 1$, the $\psi_\alpha$-norms of a real-valued random variable $V$ are defined as:
+    $$ \psinorm{V}{\alpha} = \inf \lbrace u> 0, \expectancy\exp\left(\vert V \vert^\alpha / u^\alpha \right) \leq 2 \rbrace $$
+    We say that a random variable $V$ with values in \real is sub-exponential if $\psinorm{V}{\alpha} < \infty$ for some $\alpha \geq 1$. If $\alpha = 2$, we say that $V$ is sub-Gaussian.
+    \end{definition}
+    
+    Here are two well-known properties of sub-exponential random variables:
+    \begin{enumerate}
+        \item For any real-valued variable $V$ such that $\norm{V}_\alpha < \infty$ for some $\alpha > 1$, we have \[\expectancy\left[ \vert V\vert^m\right] \leq 2 \frac{m}{\alpha}\Gamma\left( \frac{m}{\alpha}\right) \psinorm{V}{\alpha}^m \qquad \forall m \geq 1,\]
+        where $\Gamma( \dot )$ is the Gamma function.
+        \item If a real-valued random variable $V$ is sub-Gaussian, then $V^2$ is sub-exponential. Indeed, we have: \[\psinorm{V^2}{1} \leq 2 \psinorm{V}{2}^2\]
+    \end{enumerate}
+    
+    \begin{definition}
+    A random vector $X \in \real^p$ is sub-exponential if $\scalarproduct{X}{x}$ are sub-exponential random variables for $x\in \real^p$. The $\psi_\alpha$-norms of a random vector $X$ are defined as:
+    \[\psinorm{X}{\alpha} = \sup_{x\in\real^p, \vert x \vert_2 = 1} \psinorm{\scalarproduct{X}{x}}{\alpha}, \qquad \alpha \geq 1\]
+    \end{definition}
+    We recall the Bernstein inequality for sub-exponential real-valued random
+    variables (CITATION NEEDED).
+    
+    \begin{proposition}
+    Let $Y_1, \dots, Y_n$ be independent centered sub-exponential random 
+    variables, and $K=\max_i \psinorm{Y_i}{1}$. Then, for every $t \geq 0$, we have with probability at least $1-e^{-t}$:
+    \[\left\vert \frac{1}{n} \sum_{i=1}^n Y_i \right\vert \leq C K 
+    \left( \sqrt{\frac{t}{n}} \wedge \frac{t}{n} \right) \]
+    where $C > 0$ is an absolute constant.
+    \end{proposition}
+    
+    \subsection{Some elements of matrix theory}
+
+\section{Cell-wise contamination}
+    
+    In 1967, Huber introduced a general framework for the contamination of a dataset known as $\epsilon$-contamination \cite{huberRobustEstimationLocation1964}. This model supposes that among all rows of the dataset, an unknown but small proportion $\epsilon$ are observed with gross error. Here is a formal definition of this form of contamination:
+    \begin{definition}
+    Let $\mathbb{P}_\Sigma$ and be the true distribution of the data, with $\Sigma$ the covariance matrix we want to estimate. Let $\mathbb{Q}$ be the distribution of the outliers. Let $X_1, \dots, X_n$ be our finite samples observed. Huber contamination means that there exists $Z_1, \dots, Z_n \sim \mathcal{B}(\epsilon)$, such that the $(X_i, Z_i)$ are iid and, $\forall A \subset \real^p$:
+    \begin{equation}
+        \begin{cases}
+            \mathbb{P}(X_i \in A \vert Z_i = 0) = \mathbb{P}_\Sigma(A)\\
+            \mathbb{P}(X_i \in A \vert Z_i = 1) = \mathbb{Q}(A)
+        \end{cases}
+    \end{equation}
+    where $\mathcal{B}(\epsilon)$ is the Bernoulli law of parameter 
+    $\epsilon \in [0,1]$.
+    \end{definition}
+    This framework is well known in the field of robust statistics, with a plethora of unbiased estimators of both mean and covariance (CITATION NEEDED). However, there exist cases where contamination may appear independently from the row structure of our samples. \cite{raymaekersHandlingCellwiseOutliers2020} presents a generalisation of the $\epsilon$-contamination where outliers appear within rows, with specific components of the row being outliers instead of its entire information. We can present this new contamination as follows:
+    \begin{definition}
+    Using the same notations as before, Cell Wise contamination entails that 
+    there exists a set of random variables 
+    $(Z_{i,j})_{1 \leq i \leq n, 1\leq j \leq p} \sim \mathcal{B}(\epsilon)$, 
+    such that the $(X_i^{(j)}, Z_{i,j})$ are iid and, 
+    $\forall A \subset \real$:
+    \begin{equation}
+        \begin{cases}
+            \mathbb{P}(X_i^{(j)} \in A \vert Z_{i,j} = 0) = \mathbb{P}_{\Sigma, j}(A)\\
+            \mathbb{P}(X_i^{(j)} \in A \vert Z_{i,j} = 1) = \mathbb{Q}_j(A)
+        \end{cases}
+    \end{equation}
+    where $\mathbb{P}_{\Sigma, j}$ and $\mathbb{Q}_j$ are respectively the marginal distribution of $\mathbb{P}_\Sigma$ and $\mathbb{Q}$ at dimension $j$.
+    \end{definition}
+    For a pratical example of such a contamination, one can consider a dataset made where each row corresponds to a series of measures by different sensors. There is no particular reason that an error on one sensor propagates to the others, thus abnormal readings will be restricted to a particular component of the sample.
+
+    
+    
+\section{Proofs}
+
+\subsection{Proof of upper bound}
+
+Let $X_1, \dots, X_n$ be i.i.d. zero mean vectors following a 
+$\mathcal{N}(0, \Sigma)$ law, with $\Sigma$ an unknown positive definite 
+Hermitian matrix of size $p\times p$. Let for $1\leq i\leq n$ and 
+$1\leq j\leq p$, $\delta_{ij}$ follows an Bernoulli lax $\mathcal{B}(\delta)$, 
+with $\delta\in [0,1]$, such that $\delta_{ij}$ is independent both from 
+$X_i^{(j)}$, that is the $j$th component of $X_i$, and of any other Bernoulli 
+random variable. Let finally $Y_i^{(h)} = \delta_{ij} X_i^{(j)}$ the observed 
+random variable with missing values. We want an upper bound to the error 
+between the 
+
+\subsubsection{Concentration of $Y_i\otimes Y_i$ to its mean}
+
+First, let us find an upper bound to $\norm{n^{-1}\sum_i Y_i\otimes Y_i - \expectancy\left[ Y\otimes Y\right]}_2$.
+
+Let us suppose matrix $\bm{\delta} = (\delta_i)_{i=1}^n$ fixed and known. By definition of the operator norm, we can express this error in terms of Rayleigh quotients:
+\begin{equation} \label{eqn:rayleigh}
+    \begin{split}
+    \norm{n^{-1}\sum_i Y_i\otimes Y_i - \expectancy\left[ Y\otimes Y\right]}_2 &= \max_{\norm{u} = 1} u \left( n^{-1}\sum_i Y_i\otimes Y_i - \expectancy\left[ Y\otimes Y\right] \right)u^\top\\
+    &= \max_{\norm{u}=1} n^{-1}\sum_i u (Y_i\otimes Y_i)u^\top - u  \expectancy\left[ Y\otimes Y\right] u^\top
+    \end{split}
+\end{equation}
+
+Let us first examine the first term. Let $\delta_i = (\delta_{i1}, \dots, \delta{ip})$. Let $\odot$ be the Hadamard product of two vectors. We have:
+\begin{equation*}
+    \begin{split}
+    n^{-1}\sum_i u (Y_i\otimes Y_i)u^\top &= n^{-1}\sum_i u \left( (\delta_i \odot X_i)\otimes (\delta_i \odot X_i)\right)u^\top\\
+    &= n^{-1}\sum_i u (\delta_i \odot X_i)^\top \scalarproduct{\delta_i \odot X_i}{u}
+    \end{split}
+\end{equation*}
+
+using a basic property of the tensor product: $\forall u,v,w \in \real^p$ vectors, $(u\otimes v)w = u\scalarproduct{v}{w}$. From there, we twice apply the following property of the Hadamard product: $\forall u,v,w\in \real^p, u(v\odot w) = (u\odot v) w$. We have:
+\begin{equation*}
+    \begin{split}
+    n^{-1}\sum_i u (\delta_i \odot X_i)^\top \scalarproduct{\delta_i \odot X_i}{u} &= n^{-1} \sum_i (u \odot \delta_i) X_i^\top \scalarproduct{\delta_i \odot X_i}{u}\\
+    &= n^{-1} \sum_i (u \odot \delta_i) X_i^\top \scalarproduct{X_i}{u\odot \delta_i}\\
+    &= n^{-1} \sum_i \scalarproduct{u\odot \delta_i}{X_i}^2
+    \end{split}
+\end{equation*}
+
+Furthermore, by rearanging the second term, we get:
+\begin{equation*}
+    \norm{n^{-1}\sum_i Y_i\otimes Y_i - \expectancy\left[ Y\otimes Y\right]}_2 = n^{-1} \sum_{i=1}^n \scalarproduct{X_i}{u\odot \delta_i} - \scalarproduct{\Sigma (u\odot \delta_i)}{u \odot \delta_i}
+\end{equation*}
+
+% The Cauchy-Schwarz inequality gives, $\forall i$:
+% \begin{equation*}
+%     \scalarproduct{u\odot \delta_i}{X_i}^2 \leq \norm{u\odot \delta_i}^2\norm{X_i}^2
+% \end{equation*}
+% Let us first look at the norm of $u\odot\delta_i$. Since $\delta_i$ is a Boolean vector, we have:
+% \begin{equation*}
+%     \begin{split}
+%     \norm{u\odot\delta_i}^2 &= \sum_{j=1}^p (u_j\delta_{ij})^2\\
+%     &= \sum_{j=1}^p u_j^2 \delta_{ij}
+%     \end{split}
+% \end{equation*}
+% Let us observe that $\norm{u} = 1$, $\forall i,j, -1 < u_j^2 \delta_{ij} < 1$. Furthermore, using the fact that $u$ isn't random and its norm is $1$:
+% \begin{equation*}
+%     \begin{split}
+%         \expectancy(\norm{u\odot\delta_i}^2) &= \sum_{j=1}^p u_j^2 \expectancy(\delta_{ij})\\
+%         &= \sum_{j=1}^p u_j^2 \delta\\
+%         &= \norm{u}\delta\\ 
+%         &= \delta
+%     \end{split}
+% \end{equation*}
+% We can thus use Hoeffding inequality on bounded random variables. This gives, $\forall t \in (0,1)$, with probability $1-e^{-t}$:
+% \begin{equation*}
+%     \norm{u\odot \delta_i}^2 \leq \delta + \sqrt{-2 p t}
+% \end{equation*}
+% Thus, with same probability $1-e^{-t}$:
+% \begin{equation*}
+%     \begin{split}
+%         n^{-1} \sum_{i=1}^n \norm{u \odot \delta_i}^2\norm{X_i}^2 \leq \frac{\delta + \sqrt{2pt}}{n}\sum_{i=1}^n \norm{X_i}^2
+%     \end{split}
+% \end{equation*}
+
+% Let us now study $\sum_{i=1}^n \norm{X_i}$. Let $Z_i = \Sigma^\frac{-1}{2} X_i$, then we have:
+% \begin{equation*}
+%     \sum_{i=1}^n \norm{X_i}^2 \leq \norm{\Sigma^\frac{1}{2}}^2\sum_{i=1}^n \norm{Z_i}^2
+% \end{equation*}
+% and $Z_i \sim \mathcal{N}(0, I_p)$. We know that $Z_i^2$ is sub-exponential for all $i$, thus by Bernstein inequality, there exists a constant $C$ such that, with probability $1-e^{-t}$:
+% \begin{equation*}
+%     \sum_{i=1}^n \norm{Z_i}^2 \leq C np \left( \sqrt{\frac{t}{n}} \vee \frac{t}{n}\right)
+% \end{equation*}
+% Thus, with probability $2(1-e^{-t})$:
+% \begin{equation*}
+%     n^{-1} \sum_{i=1}^n \norm{u \odot \delta_i}^2\norm{X_i}^2 \leq C (\delta + \sqrt{2pt} ) p \left( \sqrt{\frac{t}{n}} \vee \frac{t}{n}\right) \norm{\Sigma^{\frac{1}{2}}}^2
+% \end{equation*}
+
+% Let us now find a lower bound to the second term of equation \ref{eqn:rayleigh}. Let $1 \leq i \leq n$, we then develop the two matrix products:
+% \begin{equation*}
+%     (u\odot \delta_i)\Sigma(u\odot \delta_i)^\top = \sum_{j=1}^p\sum_{k=1}^p u_j\delta_{ij} \Sigma_{jk} u_k \delta_{ik}
+% \end{equation*}
+% We then separate this sum to isolate the case $j=k$, so that we can take advantage of the Boolean nature of $\delta_i$:
+% \begin{equation*}
+%     \sum_{j=1}^p \sum_{k=1}^p u_j\delta_{ij} u_k \delta_{ik} \Sigma_{jk} = \sum_{j=1}^p u_j^2 \delta_{ij} \Sigma_{jj} + \sum_{\substack{j,k = 1\\ j\neq k}}^p u_j \delta_{ij} \Sigma_{jk} u_k \delta_{ik}
+% \end{equation*}
+% Like before, we can use Hoeffding inequality. In the case $j=k$, for all $t\in (0,1)$, with probability $t$:
+% \begin{equation*}
+%     \sum_{j=1}^p u_j^2 \delta_{ij}^2 \Sigma_{jj} \geq \delta\sum_{j=1}^p u_j^2 \Sigma_{jj} + \sqrt{-2p\log{t}}
+% \end{equation*}
+% In the case $j\neq k$, we have to use the independence of each Bernoulli random variable to get the following inequality, with probability $t$:  
+% \begin{equation*}
+% \sum_{\substack{j,k = 1\\ j\neq k}}^p u_j \delta_{ij} \Sigma_{jk} u_k \geq \delta^2\sum_{\substack{j,k = 1\\ j\neq k}}^p u_j \Sigma_{jk} u_k + \sqrt{-2(p-1)p\log(t)}
+% \end{equation*}
+% Thus, recombining the two, with probability at least $2e^{-t}$:
+% \begin{equation*}
+%     \begin{split}
+%         (u\odot \delta_i)\Sigma(u\odot \delta_i)^\top &\geq \delta\sum_{j=1}^p u_j^2 \Sigma_{jj} + \sqrt{2pt} + \delta^2\sum_{\substack{j,k = 1\\ j\neq k}}^p u_j \Sigma_{jk} u_k + \sqrt{2(p-1)pt}\\
+%         &\geq \delta u\Sigma u^\top + (1+ \sqrt{p-1}) \sqrt{2pt}
+%     \end{split}
+% \end{equation*}
+    
+% Finally, with probability at least $4e^{-t}(1-e^{-t})$, for all $u$ such that $\norm{u}=1$:
+% \begin{equation*}
+% n^{-1}\sum_i u (Y_i\otimes Y_i)u^\top - u  \expectancy\left[ Y\otimes Y\right] u^\top \leq (\delta + \sqrt{2pt})\norm{\Sigma^\frac{1}{2} }^2 \frac{C}{c_1} \left( \sqrt{\frac{t}{n}} \vee \frac{t}{n}\right)p - \delta u\Sigma u^\top - (1+ \sqrt{p-1}) \sqrt{2pt}
+% \end{equation*}
+
+\subsubsection{Bias of $Y_i\otimes Y_i$}
+
+Let us now find an upper bound to $\norm{n^{-1}\expectancy(Y_i\otimes Y_i) - \Sigma}$:
+
+\begin{equation*}
+    \begin{split}
+        \norm{n^{-1}\expectancy(Y_i\otimes Y_i) - \Sigma} &= \norm{\expectancy (\delta_i \odot X_i) \otimes (\delta_i \odot X_i) - \Sigma}\\
+        &= \norm{\expectancy(\delta_i\otimes \delta_i) \odot (X_i \otimes X_i) - \Sigma}
+    \end{split}
+\end{equation*}
+By the tower property,
+\begin{equation*}
+\begin{split}
+    \expectancy (\delta_i\otimes \delta_i) \odot (X_i \otimes X_i) &= \expectancy \left( \expectancy_\delta (\delta_i\otimes \delta_i) \odot (X_i \otimes X_i) \right)\\
+    &= \expectancy \left( (\delta_i\otimes \delta_i) \odot \Sigma \right)
+\end{split}
+\end{equation*}
+and thus:
+\begin{equation*}
+    \begin{split}
+        \norm{n^{-1}\expectancy(Y_i\otimes Y_i) - \Sigma}
+        &= \norm{\expectancy\left((\delta_i\otimes \delta_i) - \bm{1} \right)\odot\Sigma}\\
+        &\leq \norm{\expectancy (\delta_i\otimes \delta_i) - \bm{1}}\norm{\Sigma}
+    \end{split}
+\end{equation*}
+with $\bm{1}$ being the square matrix filled with $1$. By mutual independence of the Bernoulli variables, we know that $\expectancy \delta_i \otimes \delta_i$ is the matrix with diagonals equal to $\delta$ and non diagonal terms equal to $\delta^2$.
+
+\bibliographystyle{abbrv}
+\bibliography{biblio.bib}
+
+\end{document}
