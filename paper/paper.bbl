@@ -1,0 +1,14 @@
+\begin{thebibliography}{1}
+
+\bibitem{louniciHighdimensionalCovarianceMatrix2014}
+K.~Lounici.
+\newblock High-dimensional covariance matrix estimation with missing
+  observations.
+\newblock 20(3):1029--1058.
+
+\bibitem{raymaekersHandlingCellwiseOutliers2020}
+J.~Raymaekers and P.~J. Rousseeuw.
+\newblock Handling cellwise outliers by sparse regression and robust
+  covariance.
+
+\end{thebibliography}
