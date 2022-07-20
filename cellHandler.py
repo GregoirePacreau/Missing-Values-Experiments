@@ -2,8 +2,11 @@ def DDCW(data):
     # 1. drop variables with too many missing values
     
     # 2. DetectDeviatingCells (Rousseuw and Vand den Bossche, 2018)
+
     # 3. PCA on remaining data
+
     # 4. wrapped location and covariance (Raymaekers and Rousseuw, 2019) and computation of u_ij
+    
     # 5. removing all cases in Robust Distance exceeds khi2
     # 6. projection of the remaining zi on eigenvectors of sigma and new wrapped location and covariance
     # 7. return to original basis and reverse scaling
