@@ -2,109 +2,6 @@ DDC
 
 function (X, DDCpars = list()) 
 {
-    if (!is.data.frame(X) & !is.matrix(X)) {
-        stop("The input data must be a matrix or a data frame.")
-    }
-    if (ncol(X) < 2) 
-        stop("The input data must have at least 2 columns.")
-    if (is.null(DDCpars)) {
-        DDCpars <- list()
-    }
-    if (!is.list(DDCpars)) {
-        stop("DDCpars must be a list")
-    }
-    if (!"fracNA" %in% names(DDCpars)) {
-        DDCpars$fracNA <- 0.5
-    }
-    if (!"numDiscrete" %in% names(DDCpars)) {
-        DDCpars$numDiscrete <- 3
-    }
-    if (!"precScale" %in% names(DDCpars)) {
-        DDCpars$precScale <- 1e-12
-    }
-    if (!"cleanNAfirst" %in% names(DDCpars)) {
-        DDCpars$cleanNAfirst = "automatic"
-    }
-    if (!"tolProb" %in% names(DDCpars)) {
-        DDCpars$tolProb <- 0.99
-    }
-    if (!"corrlim" %in% names(DDCpars)) {
-        DDCpars$corrlim <- 0.5
-    }
-    if (!"combinRule" %in% names(DDCpars)) {
-        DDCpars$combinRule <- "wmean"
-    }
-    if (!"returnBigXimp" %in% names(DDCpars)) {
-        DDCpars$returnBigXimp <- FALSE
-    }
-    if (!"silent" %in% names(DDCpars)) {
-        DDCpars$silent <- FALSE
-    }
-    if (!"nLocScale" %in% names(DDCpars)) {
-        DDCpars$nLocScale = 25000
-    }
-    if (!"fastDDC" %in% names(DDCpars)) {
-        if (dim(X)[2] <= 750) {
-            fastDDC <- 0
-            DDCpars$fastDDC <- FALSE
-        }
-        else {
-            fastDDC <- 1
-            DDCpars$fastDDC <- TRUE
-        }
-    }
-    else {
-        fastDDC <- DDCpars$fastDDC + 0
-    }
-    if (DDCpars$fastDDC) {
-        if (dim(X)[2] < 500) {
-            fastDDC <- 0
-        }
-    }
-    else {
-        if (dim(X)[2] > 2000) {
-            cat("Consider using the option 'fastDDC == TRUE' which runs much faster on datasets with many variables.")
-        }
-    }
-    if (!"standType" %in% names(DDCpars)) {
-        DDCpars$standType <- "1stepM"
-    }
-    if (!"corrType" %in% names(DDCpars)) {
-        DDCpars$corrType <- "gkwls"
-    }
-    if (!"transFun" %in% names(DDCpars)) {
-        DDCpars$transFun <- "wrap"
-    }
-    if (!"nbngbrs" %in% names(DDCpars)) {
-        DDCpars$nbngbrs <- 100
-    }
-    if (!"coreOnly" %in% names(DDCpars)) {
-        DDCpars$coreOnly <- FALSE
-    }
-    if (!"tolProbCell" %in% names(DDCpars)) {
-        DDCpars$tolProbCell <- DDCpars$tolProb
-    }
-    if (!"tolProbRow" %in% names(DDCpars)) {
-        DDCpars$tolProbRow <- DDCpars$tolProb
-    }
-    if (!"tolProbReg" %in% names(DDCpars)) {
-        DDCpars$tolProbReg <- DDCpars$tolProb
-    }
-    if (!"tolProbCorr" %in% names(DDCpars)) {
-        DDCpars$tolProbCorr <- DDCpars$tolProb
-    }
-    if (!"includeSelf" %in% names(DDCpars)) {
-        DDCpars$includeSelf <- 1
-    }
-    if (!"numiter" %in% names(DDCpars)) {
-        DDCpars$numiter <- 1
-    }
-    if (!"qdim" %in% names(DDCpars)) {
-        DDCpars$qdim <- 30
-    }
-    if (!"nCorr" %in% names(DDCpars)) {
-        DDCpars$nCorr = 1000
-    }
     DDCpars <- DDCpars[c("fracNA", "numDiscrete", "precScale", 
         "cleanNAfirst", "tolProb", "corrlim", "combinRule", "returnBigXimp", 
         "silent", "nLocScale", "fastDDC", "standType", "corrType", 
@@ -259,4 +156,569 @@ function (X, mu, Sigma, quant = 0.99)
     indcells <- setdiff(indcells, indNAs)
     return(list(Ximp = Ximp, indcells = indcells, indNAs = indNAs, 
         Zres = Zres, cellPaths = cellPaths, Zres_denom = Zres_denom))
+}
+
+DI
+function (X, initEst = "DDCWcov", crit = 0.01, maxits = 10, quant = 0.99, 
+    maxCol = 0.25, checkPars = list()) 
+{
+    if (!is.data.frame(X) & !is.matrix(X)) {
+        stop("The input data must be a matrix or a data frame")
+    }
+    X <- as.matrix(X)
+    if (!"coreOnly" %in% names(checkPars)) {
+        checkPars$coreOnly <- FALSE
+    }
+    if (!"silent" %in% names(checkPars)) {
+        checkPars$silent <- FALSE
+    }
+    if (!"numDiscrete" %in% names(checkPars)) {
+        checkPars$numDiscrete <- 5
+    }
+    if (!"precScale" %in% names(checkPars)) {
+        checkPars$precScale <- 1e-12
+    }
+    if (!"fracNA" %in% names(checkPars)) {
+        checkPars$fracNA <- 0.15
+    }
+    CD_out <- list()
+    if (!checkPars$coreOnly) {
+        CD_out <- checkDataSet(X, fracNA = checkPars$fracNA, 
+            numDiscrete = checkPars$numDiscrete, precScale = checkPars$precScale, 
+            silent = checkPars$silent)
+        X <- CD_out$remX
+    }
+    mS_cov <- function(X, distances, nbimps) {
+        return(list(mu = colMeans(X), cov = cov(X)))
+    }
+    if (is.list(initEst)) {
+        locScale_init <- list(loc = initEst$mu, scale = sqrt(diag(initEst$Sigma)))
+        mu_init <- rep(0, dim(X)[2])
+        cov_init <- cov2cor(initEst$Sigma)
+        Z <- scale(X, initEst$mu, sqrt(diag(initEst$Sigma)))
+        out_init <- list()
+    }
+    else {
+        if (initEst == "TSGS") {
+            initEst <- TwoSGS
+        }
+        else {
+            initEst <- DDCWcov
+        }
+        out_init <- initEst(X)
+        locScale_init <- out_init$locScale
+        mu_init <- rep(0, ncol(X))
+        cov_init <- out_init$Zcov.raw
+        Z <- out_init$Z
+    }
+    nbits <- 0
+    convcrit <- 1
+    n <- dim(Z)[1]
+    d <- dim(Z)[2]
+    M <- floor(maxCol * n)
+    mu <- mu_init
+    Sigma <- cov_init
+    invOut <- mpinv(cov_init)
+    Sigmai <- invOut$Inv
+    Sigmaisqrt <- invOut$InvSqrt
+    Zimp <- Z
+    naMask <- is.na(Z) + 0
+    mus <- array(0, dim = c(maxits + 1, d))
+    Sigmas <- array(0, dim = c(maxits + 1, d, d))
+    mus[1, ] <- mu_init
+    Sigmas[1, , ] <- cov_init
+    while ((nbits < maxits) && (convcrit > crit)) {
+        predictors <- Sigmaisqrt
+        betamat <- array(0, c(n, d + 1, d))
+        Bmat <- array(0, c(n, d + 1, d, d))
+        orderings <- matrix(0, n, d)
+        distances <- matrix(0, n, d + 1)
+        deltas <- matrix(0, n, d)
+        for (i in seq_len(n)) {
+            z <- Z[i, ]
+            indNA <- which(naMask[i, ] == 1)
+            z[indNA] <- mu[indNA]
+            Z[i, ] <- z
+            response <- Sigmaisqrt %*% (z - mu)
+            weights <- huberweights(x = z - mu, b = 1.5)
+            larOut <- findCellPath_cpp(predictors = predictors, 
+                response = response, weights = weights, Sigmai = Sigmai, 
+                naMask = naMask[i, ])
+            deltas[i, larOut$ordering] <- abs(diff(larOut$RSS))
+            deltas[i, larOut$ordering] <- rev(cummax(rev(deltas[i, 
+                larOut$ordering])))
+            betamat[i, , ] <- larOut$beta
+            Bmat[i, , , ] <- larOut$biasMat
+            distances[i, ] <- larOut$RSS
+            orderings[i, ] <- larOut$ordering
+        }
+        tiebraker <- t(apply(orderings, 1, function(y) order(y))) + 
+            seq_len(n) * d
+        deltas_order <- order(deltas, tiebraker, decreasing = TRUE)
+        deltas_order <- unique(c(which(naMask == 1), deltas_order))
+        NBimps_col <- rep(0, d)
+        cutpoints <- rep(1, n)
+        droppedPaths <- rep(0, n)
+        W <- matrix(0, n, d)
+        for (i in seq_len(length(deltas_order))) {
+            idx <- deltas_order[i]
+            delta <- deltas[idx]
+            rownb <- (idx - 1)%%n + 1
+            if (delta > qchisq(quant, 1)) {
+                if (!droppedPaths[rownb]) {
+                  colnb <- ((idx - 1)%/%n) + 1
+                  if (NBimps_col[colnb] < M) {
+                    cutpoints[rownb] <- cutpoints[rownb] + 1
+                    NBimps_col[colnb] <- NBimps_col[colnb] + 
+                      1
+                    W[rownb, colnb] <- 1
+                  }
+                  else {
+                    droppedPaths[rownb] <- 1
+                  }
+                }
+            }
+            else {
+                droppedPaths[rownb] <- 1
+            }
+        }
+        finalBetas <- matrix(0, n, d)
+        finalBias <- matrix(0, d, d)
+        finalDistances <- rep(0, n)
+        finalNbimps <- cutpoints - 1
+        finalW <- matrix(0, n, d)
+        for (i in seq_len(n)) {
+            finalBetas[i, ] <- betamat[i, cutpoints[i], ]
+            finalBias <- finalBias + Bmat[i, cutpoints[i], , 
+                ]
+            finalDistances[i] <- distances[i, cutpoints[i]]
+            finalW[i, ] <- (abs(betamat[i, cutpoints[i], ]) > 
+                1e-10) + 0
+        }
+        Zimp <- Z - finalBetas
+        muSigmaNew <- mS_cov(Zimp, finalDistances, finalNbimps)
+        mu <- muSigmaNew$mu
+        Sigma <- muSigmaNew$cov + finalBias/n
+        mus[nbits + 2, ] <- mu
+        Sigmas[nbits + 2, , ] <- Sigma
+        invOut <- mpinv(Sigma)
+        Sigmai <- invOut$Inv
+        Sigmaisqrt <- invOut$InvSqrt
+        convcrit <- sum((Sigmas[nbits + 2, , ] - Sigmas[nbits + 
+            1, , ])^2) + sum((mus[nbits + 2, ] - mus[nbits + 
+            1, ])^2)
+        nbits <- nbits + 1
+    }
+    Sigmas <- Sigmas[seq_len(nbits + 1), , ]
+    Ximp <- scale(Zimp, FALSE, 1/locScale_init$scale)
+    Ximp <- scale(Ximp, -locScale_init$loc, FALSE)
+    center_out <- locScale_init$loc + mu * locScale_init$scale
+    cov_out <- t(t(Sigma) * locScale_init$scale) * locScale_init$scale
+    Sigmas <- apply(Sigmas, 1, function(y) t(t(y) * locScale_init$scale) * 
+        locScale_init$scale)
+    dim(Sigmas) <- c(d, d, nbits + 1)
+    Sigmas <- aperm(Sigmas, perm = c(3, 1, 2))
+    CH.out <- cellHandler(X, center_out, cov_out, quant = quant)
+    return(list(center = center_out, cov = cov_out, nits = nbits, 
+        Ximp = CH.out$Ximp, indcells = CH.out$indcells, indNAs = CH.out$indNAs, 
+        Zres = CH.out$Zres, cellPaths = CH.out$cellPaths, Zres_denom = CH.out$Zres_denom, 
+        checkDataSet_out = CD_out))
+}
+
+heckDataSet
+function (X, fracNA = 0.5, numDiscrete = 3, precScale = 1e-12, 
+    silent = FALSE, cleanNAfirst = "automatic") 
+{
+    if (is.null(fracNA)) {
+        fracNA <- 0.5
+    }
+    if (is.null(numDiscrete)) {
+        numDiscrete <- 3
+    }
+    if (is.null(precScale)) {
+        precScale <- 1e-12
+    }
+    if (is.null(silent)) {
+        silent <- FALSE
+    }
+    if (is.null(cleanNAfirst)) {
+        cleanNAfirst <- "automatic"
+    }
+    wnq <- function(string, qwrite = 1) {
+        if (qwrite == 1) 
+            write(noquote(string), file = "", ncolumns = 100)
+    }
+    pnq <- function(string, qwrite = 1) {
+        if (qwrite == 1) 
+            print(noquote(string))
+    }
+    if (!is.data.frame(X) & !is.matrix(X)) {
+        stop("The input data must be a matrix or a data frame")
+    }
+    n <- nrow(X)
+    if (n < 3) 
+        stop(" The input data must have at least 3 rows (cases)")
+    d <- ncol(X)
+    if (!silent) {
+        wnq(" ")
+        wnq(paste(" The input data has ", n, " rows and ", d, 
+            " columns.", sep = ""))
+    }
+    if (is.matrix(X)) {
+        X <- data.frame(X)
+    }
+    remX <- X
+    colInAnalysis <- sapply(remX, is.numeric)
+    numgoodcol <- sum(colInAnalysis)
+    vecNotNumeric <- (colInAnalysis == FALSE)
+    numbadcol <- sum(vecNotNumeric)
+    namesNotNumeric <- NULL
+    if (numbadcol > 0) {
+        if (!silent) {
+            wnq(" ")
+            wnq(paste(" The input data contained ", numbadcol, 
+                " non-numeric columns (variables).", sep = ""))
+            wnq(" Their column names are:")
+            wnq(" ")
+        }
+        namesNotNumeric <- colnames(remX)[vecNotNumeric]
+        if (!silent) {
+            pnq(namesNotNumeric)
+            wnq(" ")
+        }
+        if (numgoodcol > 1) {
+            if (!silent) {
+                wnq(" These columns will be ignored in the analysis.")
+                wnq(paste(" We continue with the remaining ", 
+                  numgoodcol, " numeric columns:", sep = ""))
+            }
+            remX <- remX[colInAnalysis]
+        }
+        else {
+            if (numgoodcol == 0) 
+                stop(" No columns remain, so we stop.")
+            if (numgoodcol == 1) 
+                stop(" Only 1 column remains, so we stop.")
+        }
+        if (!silent) {
+            wnq(" ")
+            pnq(names(which(colInAnalysis)))
+        }
+    }
+    remX <- data.matrix(remX, rownames.force = TRUE)
+    caseNumber <- (seq_len(nrow(remX)))
+    distFromCaseNumber <- function(colj, caseNumber) {
+        mean(abs(colj - caseNumber), na.rm = FALSE)
+    }
+    dists <- apply(remX, 2, distFromCaseNumber, caseNumber)
+    dists[!is.finite(dists)] <- 1
+    vecbadcol <- (dists == 0)
+    numbadcol <- sum(vecbadcol)
+    goodcol <- (vecbadcol == FALSE)
+    numgoodcol <- sum(goodcol)
+    namesCaseNumber <- NULL
+    if (numbadcol > 0) {
+        if (!silent) {
+            wnq(" ")
+            wnq(paste(" The data contained ", numbadcol, " columns that were", 
+                " identical to the case number", sep = ""))
+            wnq(" (number of the row).")
+            wnq(" Their column names are:")
+            wnq(" ")
+        }
+        namesCaseNumber <- colnames(remX)[vecbadcol]
+        if (!silent) {
+            pnq(namesCaseNumber)
+            wnq(" ")
+        }
+        if (numgoodcol > 1) {
+            if (!silent) {
+                wnq(" These columns will be ignored in the analysis.")
+                wnq(paste(" We continue with the remaining ", 
+                  numgoodcol, " columns:", sep = ""))
+            }
+            remX <- remX[, goodcol, drop = FALSE]
+        }
+        else {
+            if (numgoodcol == 0) 
+                stop(" No columns remain, so we stop.")
+            if (numgoodcol == 1) 
+                stop(" Only 1 column remains, so we stop.")
+        }
+        colInAnalysis[colInAnalysis == TRUE] <- goodcol
+        if (!silent) {
+            wnq(" ")
+            pnq(names(which(colInAnalysis)))
+        }
+    }
+    if (cleanNAfirst == "automatic") {
+        if (dim(remX)[2] >= 5 * dim(remX)[1]) {
+            cleanNAfirst = "columns"
+        }
+        else {
+            cleanNAfirst = "rows"
+        }
+    }
+    if (cleanNAfirst == "columns") {
+        remX[!is.finite(remX)] <- NA
+        acceptNA <- nrow(remX) * fracNA
+        NAcounts <- colSums(is.na(remX))
+        goodcol <- (NAcounts <= acceptNA)
+        numgoodcol <- sum(goodcol)
+        vecNAcol <- (goodcol == FALSE)
+        numNAcol <- sum(vecNAcol)
+        namesNAcol <- NULL
+        if (numNAcol > 0) {
+            if (!silent) {
+                wnq(" ")
+                wnq(paste(" The data contained ", numNAcol, " columns with over ", 
+                  round(100 * fracNA, 2), "% of NAs.", sep = ""))
+                wnq(" Their column names are:")
+                wnq(" ")
+            }
+            namesNAcol <- colnames(remX)[vecNAcol]
+            if (!silent) {
+                pnq(namesNAcol)
+                wnq(" ")
+            }
+            if (numgoodcol > 1) {
+                if (!silent) {
+                  wnq(" These columns will be ignored in the analysis.")
+                  wnq(paste(" We continue with the remaining ", 
+                    numgoodcol, " columns:", sep = ""))
+                }
+                remX <- remX[, goodcol, drop = FALSE]
+            }
+            else {
+                if (numgoodcol == 0) 
+                  stop(" No columns remain, so we stop.")
+                if (numgoodcol == 1) 
+                  stop(" Only 1 column remains, so we stop.")
+            }
+            colInAnalysis[colInAnalysis == TRUE] <- goodcol
+            if (!silent) {
+                wnq(" ")
+                pnq(names(which(colInAnalysis)))
+            }
+        }
+        acceptNA <- ncol(remX) * fracNA
+        NAcounts <- rowSums(is.na(remX))
+        goodrow <- (NAcounts <= acceptNA)
+        numgoodrow <- sum(goodrow)
+        vecNArow <- (goodrow == FALSE)
+        numNArow <- sum(vecNArow)
+        rowInAnalysis <- goodrow
+        namesNArow <- NULL
+        if (numNArow > 0) {
+            if (!silent) {
+                wnq(" ")
+                wnq(paste(" The data contained ", numNArow, " rows with over ", 
+                  round(100 * fracNA, 2), "% of NAs.", sep = ""))
+                wnq(" Their row names are:")
+                wnq(" ")
+            }
+            namesNArow <- rownames(remX)[vecNArow]
+            if (!silent) {
+                pnq(namesNArow)
+                wnq(" ")
+            }
+            if (numgoodrow > 2) {
+                if (!silent) {
+                  wnq(" These rows will be ignored in the analysis.")
+                  wnq(paste(" We continue with the remaining ", 
+                    numgoodrow, " rows:", sep = ""))
+                }
+                remX <- remX[goodrow, , drop = FALSE]
+            }
+            else {
+                if (numgoodrow == 0) 
+                  stop(" No rows remain, so we stop.")
+                if (numgoodrow == 1) 
+                  stop(" Only 1 row remains, so we stop.")
+                if (numgoodrow == 2) 
+                  stop(" Only 2 rows remain, so we stop.")
+            }
+            if (!silent) {
+                wnq(" ")
+                pnq(names(which(rowInAnalysis)))
+            }
+        }
+    }
+    else {
+        remX[!is.finite(remX)] <- NA
+        acceptNA <- ncol(remX) * fracNA
+        NAcounts <- rowSums(is.na(remX))
+        goodrow <- (NAcounts <= acceptNA)
+        numgoodrow <- sum(goodrow)
+        vecNArow <- (goodrow == FALSE)
+        numNArow <- sum(vecNArow)
+        rowInAnalysis <- goodrow
+        namesNArow <- NULL
+        if (numNArow > 0) {
+            if (!silent) {
+                wnq(" ")
+                wnq(paste(" The data contained ", numNArow, " rows with over ", 
+                  round(100 * fracNA, 2), "% of NAs.", sep = ""))
+                wnq(" Their row names are:")
+                wnq(" ")
+            }
+            namesNArow <- rownames(remX)[vecNArow]
+            if (!silent) {
+                pnq(namesNArow)
+                wnq(" ")
+            }
+            if (numgoodrow > 2) {
+                if (!silent) {
+                  wnq(" These rows will be ignored in the analysis.")
+                  wnq(paste(" We continue with the remaining ", 
+                    numgoodrow, " rows:", sep = ""))
+                }
+                remX <- remX[goodrow, , drop = FALSE]
+            }
+            else {
+                if (numgoodrow == 0) 
+                  stop(" No rows remain, so we stop.")
+                if (numgoodrow == 1) 
+                  stop(" Only 1 row remains, so we stop.")
+                if (numgoodrow == 2) 
+                  stop(" Only 2 rows remain, so we stop.")
+            }
+            if (!silent) {
+                wnq(" ")
+                pnq(names(which(rowInAnalysis)))
+            }
+        }
+        acceptNA <- nrow(remX) * fracNA
+        NAcounts <- colSums(is.na(remX))
+        goodcol <- (NAcounts <= acceptNA)
+        numgoodcol <- sum(goodcol)
+        vecNAcol <- (goodcol == FALSE)
+        numNAcol <- sum(vecNAcol)
+        namesNAcol <- NULL
+        if (numNAcol > 0) {
+            if (!silent) {
+                wnq(" ")
+                wnq(paste(" The data contained ", numNAcol, " columns with over ", 
+                  round(100 * fracNA, 2), "% of NAs.", sep = ""))
+                wnq(" Their column names are:")
+                wnq(" ")
+            }
+            namesNAcol <- colnames(remX)[vecNAcol]
+            if (!silent) {
+                pnq(namesNAcol)
+                wnq(" ")
+            }
+            if (numgoodcol > 1) {
+                if (!silent) {
+                  wnq(" These columns will be ignored in the analysis.")
+                  wnq(paste(" We continue with the remaining ", 
+                    numgoodcol, " columns:", sep = ""))
+                }
+                remX <- remX[, goodcol, drop = FALSE]
+            }
+            else {
+                if (numgoodcol == 0) 
+                  stop(" No columns remain, so we stop.")
+                if (numgoodcol == 1) 
+                  stop(" Only 1 column remains, so we stop.")
+            }
+            colInAnalysis[colInAnalysis == TRUE] <- goodcol
+            if (!silent) {
+                wnq(" ")
+                pnq(names(which(colInAnalysis)))
+            }
+        }
+    }
+    countValues <- function(colj) {
+        sum(!is.na(unique(colj)))
+    }
+    valueCount <- apply(remX, 2, countValues)
+    goodcol <- (valueCount > numDiscrete)
+    numgoodcol <- sum(goodcol)
+    vecbadcol <- (goodcol == F)
+    numbadcol <- sum(vecbadcol)
+    namesDiscrete <- NULL
+    if (numbadcol > 0) {
+        if (!silent) {
+            wnq(" ")
+            wnq(paste(" The data contained ", numbadcol, " discrete columns with ", 
+                numDiscrete, " or fewer values.", sep = ""))
+            wnq(" Their column names are:")
+            wnq(" ")
+        }
+        namesDiscrete <- colnames(remX)[vecbadcol]
+        if (!silent) {
+            pnq(namesDiscrete)
+            wnq(" ")
+        }
+        if (numgoodcol > 1) {
+            if (!silent) {
+                wnq(" These columns will be ignored in the analysis.")
+                wnq(paste(" We continue with the remaining ", 
+                  numgoodcol, " columns:", sep = ""))
+            }
+            remX <- remX[, goodcol, drop = FALSE]
+        }
+        else {
+            if (numgoodcol == 0) 
+                stop(" No columns remain, so we stop.")
+            if (numgoodcol == 1) 
+                stop(" Only 1 column remains, so we stop.")
+        }
+        colInAnalysis[colInAnalysis == TRUE] <- goodcol
+        if (!silent) {
+            wnq(" ")
+            pnq(names(which(colInAnalysis)))
+        }
+    }
+    colScale <- apply(remX, 2, mad, na.rm = TRUE)
+    goodcol <- (colScale > precScale)
+    numgoodcol <- sum(goodcol)
+    vecbadcol <- (goodcol == FALSE)
+    numbadcol <- sum(vecbadcol)
+    namesZeroScale <- NULL
+    if (numbadcol > 0) {
+        if (!silent) {
+            wnq(" ")
+            wnq(paste(" The data contained ", numbadcol, " columns with zero", 
+                " or tiny median absolute deviation.", sep = ""))
+            wnq(" Their column names are:")
+            wnq(" ")
+        }
+        namesZeroScale <- colnames(remX)[vecbadcol]
+        if (!silent) {
+            pnq(namesZeroScale)
+            wnq(" ")
+        }
+        if (numgoodcol > 1) {
+            if (!silent) {
+                wnq(" These columns will be ignored in the analysis.")
+                wnq(paste(" We continue with the remaining ", 
+                  numgoodcol, " columns:", sep = ""))
+            }
+            remX <- remX[, goodcol, drop = FALSE]
+        }
+        else {
+            if (numgoodcol == 0) 
+                stop(" No columns remain, so we stop.")
+            if (numgoodcol == 1) 
+                stop(" Only 1 column remains, so we stop.")
+        }
+        colInAnalysis[colInAnalysis == TRUE] <- goodcol
+        if (!silent) {
+            wnq(" ")
+            pnq(names(which(colInAnalysis)))
+        }
+    }
+    if (nrow(remX) < n | ncol(remX) < d) {
+        wnq(" ")
+        wnq(paste(" The final data set we will analyze has ", 
+            nrow(remX), " rows and ", ncol(remX), " columns.", 
+            sep = ""))
+        wnq(" ")
+    }
+    return(list(colInAnalysis = which(colInAnalysis), rowInAnalysis = which(rowInAnalysis), 
+        namesNotNumeric = namesNotNumeric, namesCaseNumber = namesCaseNumber, 
+        namesNAcol = namesNAcol, namesNArow = namesNArow, namesDiscrete = namesDiscrete, 
+        namesZeroScale = namesZeroScale, remX = remX))
 }
