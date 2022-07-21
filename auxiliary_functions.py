@@ -26,12 +26,11 @@ def low_rank(effective_rank, p, n, bell_curve=False):
     a tuple composed of the generated covariance matrix and the tuple of its eigenvalue decomposition.
 
     """
-    
+
     ## Index of the singular values 
     singular_ind = numpy.arange(p, dtype=numpy.float64)
-    
+
     if bell_curve:
-        
         # Build the singular profile by assembling signal and noise components (from the make_low_rank_matrix code of numpy)
         tail_strength = 0.5
         low_rank = (1 - tail_strength) * numpy.exp(-1.0 * (singular_ind / effective_rank) ** 2)
@@ -318,7 +317,6 @@ def adv_exp(n=500, p=100, epsilons=numpy.linspace(0.01, 0.2, 10), delta=0.9, M=1
     std_MV = []
 
     for epsilon in tqdm(epsilons):
-
         classical = []
         robust = []
         MV = []
@@ -410,5 +408,5 @@ def adv_exp(n=500, p=100, epsilons=numpy.linspace(0.01, 0.2, 10), delta=0.9, M=1
     if eigen_index is not None:
         axs.set_title("Frobenius error on {}th projector".format(eigen_index))
     else:
-        axs.set_title("Forbenius error on covariance matrix estimations")
+        axs.set_title("Frobenius error on covariance matrix estimations")
     plt.show()
