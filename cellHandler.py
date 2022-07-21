@@ -28,7 +28,9 @@ def TSGS(data, filter="UBF-DDC", partial_impute=False, tol=1e-4, maxiter=150, me
     data.to_csv("temp/TSGS_data.csv")
 
     # Calls the script which produces a robust covariance matrix
-    os.system("Rscript R_scripts/TSGS.R temp/TSGS_data.csv {} {} {} {} {}")
+    os.system("Rscript R_scripts/TSGS.R temp/TSGS_data.csv {} {} {} {} {}".format(
+        str(filter), str(partial_impute), str(tol), str(maxiter), method, init
+    ))
 
     res = pd.read_csv("temp/TSGS_data_res.csv")
     os.remove("temp/TSGS_data.csv")
