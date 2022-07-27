@@ -10,11 +10,9 @@ crit = as.double(args[3])
 maxits = as.integer(args[4])
 quant = as.double(args[5])
 maxCol = as.double(args[6])
-params = c(data, initEst, crit, maxits, quant, maxCol)
 
-DIdata = call.do(DI, params)
-
-res = c(DIdata$center, DIdata$cov)
+DIdata = DI(data, initEst, crit, maxits, quant, maxCol)
 
 wname = sub('.csv', '', args[1])
-write.csv(res, paste(wname, '_res.csv', sep=''))
+write.csv(DIdata$center, paste(wname, '_res_mu.csv', sep=''))
+write.csv(DIdata$cov, paste(wname, '_res_S.csv', sep=''))

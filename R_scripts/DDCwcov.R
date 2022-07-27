@@ -7,7 +7,7 @@ args = commandArgs(trailingOnly=TRUE)
 data = read.csv(args[1])
 maxCol = strtoi(args[2])/100
 
-ecov = DDCwcov(data, maxCol)
+ecov = DDCWcov(data, maxCol)
 
 wname = sub('.csv', '', args[1])
 

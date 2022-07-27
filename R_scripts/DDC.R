@@ -5,7 +5,7 @@ library(cellWise)
 # - quantile for outlier test (int, in percent)
 args = commandArgs(trailingOnly=TRUE)
 data = read.csv(args[1])
-quant = strtoi(args[2])/100
+quant = as.double(args[2])
 
 DDCdata = DDC(data)
 
