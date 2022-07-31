@@ -13,4 +13,4 @@ DDCdata = DDC(data)
 isOutlier = DDCdata$stdResid > sqrt(qchisq(quant, 1))
 
 wname = sub('.csv', '', args[1])
-write.csv(isOutlier, paste(wname, '_res.csv', sep=''))
+write.csv(isOutlier, paste(wname, '_res.csv', sep=''), row.names=FALSE)

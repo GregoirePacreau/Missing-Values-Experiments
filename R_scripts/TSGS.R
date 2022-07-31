@@ -1,3 +1,5 @@
+library(MASS)
+library(Rcpp)
 library(GSE)
 
 # arguments are:
