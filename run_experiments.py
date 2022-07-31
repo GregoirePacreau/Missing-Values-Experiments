@@ -1,6 +1,6 @@
 from auxiliary_functions import *
 import numpy
-import tqdm
+from tqdm import tqdm
 import pickle
 
 def run_experiment(sample_size, dim_size, effective_rank, n_exp, epsilons, output, contamination, method, intensity=0, seed=0, index=None):
@@ -10,8 +10,10 @@ def run_experiment(sample_size, dim_size, effective_rank, n_exp, epsilons, outpu
 
     assert isinstance(method, str) or isinstance(method, list), "methods should be a string or a list of string, got {}".format(type(method))
     if isinstance(method, str):
+        method_name = method
         errors[method] = {}
     else:
+        method_name = '+'.join(method)
         for k in method:
             errors[k] = {}
 
@@ -25,12 +27,11 @@ def run_experiment(sample_size, dim_size, effective_rank, n_exp, epsilons, outpu
 
             #generate data
             sigma,_ = low_rank(effective_rank, dim_size, sample_size)
-            X = numpy.random.multivariate_normal(sample_size, dim_size, sigma)
-
+            X = numpy.random.multivariate_normal(numpy.zeros(dim_size), sigma, size=sample_size)
             # contaminate data
             if contamination == "bernoulli":
                 X_noisy = contaminate_bernoulli(X, epsilon, intensity)
-            elif contamination == "adersarial":
+            elif contamination == "adversarial":
                 X_noisy = contaminate_adversarial(X, sigma, epsilon)
 
             #compute error of each method
@@ -39,4 +40,14 @@ def run_experiment(sample_size, dim_size, effective_rank, n_exp, epsilons, outpu
                 error = compute_error(sigma, sigma_hat, index=index)
                 errors[k][epsilon].append(error)
 
-    
+
+    filename = 'exp_n={}_p={}_e={}_n_exp={}_cont={}_meth={}.pkl'.format(
+        sample_size,
+        dim_size,
+        effective_rank,
+        n_exp,
+        contamination,
+        method_name
+    )
+    with open(output+filename, 'w+') as file:
+        pickle.dump(errors, file)

@@ -44,7 +44,7 @@ parser.add_argument(
     default=0.01
 )
 parser.add_argument(
-    '--min_epsilon',
+    '--max_epsilon',
     type=float,
     default=0.20
 )
@@ -61,7 +61,7 @@ parser.add_argument(
 parser.add_argument(
     '--output',
     type=str,
-    default="outputs/"
+    default="results/"
 )
 
 args = parser.parse_args()
@@ -72,7 +72,7 @@ if __name__ == '__main__':
     else:
         methods = args.method
 
-    epsilons = numpy.linspace(args.min_espilon, args.max_epsilon, args.n_epsilon)
+    epsilons = numpy.linspace(args.min_epsilon, args.max_epsilon, args.n_epsilon)
 
     run_experiment(args.sample_size,
                     args.dim_size,
