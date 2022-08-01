@@ -43,7 +43,7 @@ def run_experiment(sample_size, dim_size, effective_rank, n_exp, epsilons, outpu
                 errors[k][epsilon].append(error)
 
 
-    filename = 'exp_n={}_p={}_e={}_n_exp={}_cont={}_meth={}.pkl'.format(
+    filename = 'nsample={}_dim={}_erank={}_nexp={}_cont={}_meth={}.pkl'.format(
         sample_size,
         dim_size,
         effective_rank,
