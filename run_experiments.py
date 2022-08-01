@@ -17,7 +17,9 @@ def run_experiment(sample_size, dim_size, effective_rank, n_exp, epsilons, outpu
         for k in method:
             errors[k] = {}
 
-    for epsilon in tqdm(epsilons):
+    pbar = tqdm(epsilons)
+    pbar.set_description(method + ' ' + contamination)
+    for epsilon in pbar:
 
         # initialising the experiments in dictionary
         for k in errors.keys():
@@ -49,5 +51,5 @@ def run_experiment(sample_size, dim_size, effective_rank, n_exp, epsilons, outpu
         contamination,
         method_name
     )
-    with open(output+filename, 'w+') as file:
+    with open(output+filename, 'wb+') as file:
         pickle.dump(errors, file)

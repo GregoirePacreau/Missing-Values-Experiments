@@ -14,5 +14,5 @@ maxCol = as.double(args[6])
 DIdata = DI(data, initEst, crit, maxits, quant, maxCol)
 
 wname = sub('.csv', '', args[1])
-write.csv(DIdata$center, paste(wname, '_res_mu.csv', sep=''))
-write.csv(DIdata$cov, paste(wname, '_res_S.csv', sep=''))
+write.csv(DIdata$center, paste(wname, '_res_mu.csv', sep=''), row.names=FALSE)
+write.csv(DIdata$cov, paste(wname, '_res_S.csv', sep=''), row.names=FALSE)

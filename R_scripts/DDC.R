@@ -7,7 +7,7 @@ args = commandArgs(trailingOnly=TRUE)
 data = read.csv(args[1])
 quant = as.double(args[2])
 
-DDCdata = DDC(data)
+DDCdata = DDC(data, silent=TRUE)
 
 # Outlier test using chi-squared quantiles
 isOutlier = DDCdata$stdResid > sqrt(qchisq(quant, 1))

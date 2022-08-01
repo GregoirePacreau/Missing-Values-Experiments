@@ -206,10 +206,13 @@ def apply_estimator(method, X):
         _, sigma = DI(X)
     elif method == "TSGS":
         _, sigma, _ = TSGS(X)
+        print(sigma.shape)
     elif method == "DDC_MV":
+        # mask must be wether to keep the vallue, hence is 1 - isOutlier
         isOutlier = DDC(X).astype(int)
-        delta = isOutlier.sum()/isOutlier.shape[0]/isOutlier.shape[1]
-        sigma = estimate_cov(X, delta=delta, mask=isOutlier)
+        mask = 1 - isOutlier
+        delta = mask.sum()/mask.shape[0]/mask.shape[1]
+        sigma = estimate_cov(X, delta=delta, mask=mask)
     elif method == "random_MV":
         sigma = MV_estimator(X, delta=0.5)
     elif method == "tail_MV":
