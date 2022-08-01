@@ -32,6 +32,6 @@ if (length(args) > 8){
   TSGSdata = TSGS(data, filter, partial_inpute, tol, maxiter, method, init, mu0, S0)
 }
 wname = sub('.csv', '', args[1])
-write.csv(TSGSdata@mu, paste(wname, '_res_mu.csv', sep=''))
-write.csv(TSGSdata@S, paste(wname, '_res_S.csv', sep=''))
-write.csv(TSGSdata@xf, paste(wname, '_res_filtered.csv', sep=''))
+write.csv(TSGSdata@mu, paste(wname, '_res_mu.csv', sep=''), row.names=FALSE)
+write.csv(TSGSdata@S, paste(wname, '_res_S.csv', sep=''), row.names=FALSE)
+write.csv(TSGSdata@xf, paste(wname, '_res_filtered.csv', sep=''), row.names=FALSE)

@@ -206,7 +206,6 @@ def apply_estimator(method, X):
         _, sigma = DI(X)
     elif method == "TSGS":
         _, sigma, _ = TSGS(X)
-        print(sigma.shape)
     elif method == "DDC_MV":
         # mask must be wether to keep the vallue, hence is 1 - isOutlier
         isOutlier = DDC(X).astype(int)
