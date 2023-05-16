@@ -25,10 +25,15 @@ parser.add_argument(
     type=str,
     choices=["DI",
              "TSGS",
-             "random_MV",
-             "DDC_MV",
-             "tail_MV",
-             "all"],
+             "randomMV",
+             "DDCMV90",
+             "DDCMV95",
+             "tailMV",
+             "classical",
+             "contMV",
+             "oracleMV",
+             "all",
+             "all+"],
     default="TSGS"
 )
 parser.add_argument(
@@ -51,7 +56,7 @@ parser.add_argument(
 parser.add_argument(
     '--n_epsilon',
     type=int,
-    default=30
+    default=7
 )
 parser.add_argument(
     '--n_exp',
@@ -61,24 +66,56 @@ parser.add_argument(
 parser.add_argument(
     '--output',
     type=str,
-    default="results/"
+    default="results_clean/"
+)
+
+parser.add_argument(
+    '--intensity',
+    type=float,
+    default=1
+)
+
+parser.add_argument(
+    '--contoption',
+    type=str,
+    choices=["gauss",
+             "uniform",
+             "dirac",
+             "None"],
+    default=None
+)
+
+parser.add_argument(
+    '--time',
+    type=bool,
+    default=False
 )
 
 args = parser.parse_args()
 
 if __name__ == '__main__':
     if args.method == "all":
-        methods = ["DI", "TSGS", "random_MV", "DDC_MV", "tail_MV"]
+        methods = ["DDCMV90", "DDCMV95", "tailMV", "classical", "oracleMV"]
+    elif args.method == "all+":
+        methods = ["DI", "TSGS", "DDCMV90", "tailMV", "classical", "oracleMV"]
     else:
-        methods = args.method
+        methods = [args.method]
 
     epsilons = numpy.linspace(args.min_epsilon, args.max_epsilon, args.n_epsilon)
 
-    run_experiment(args.sample_size,
-                    args.dim_size,
-                    args.effective_rank,
-                    args.n_exp,
-                    epsilons,
-                    args.output,
-                    args.contamination,
-                    methods)
+    print("\n ########################################################################## \n")
+
+    for m in methods:
+        try :
+            run_experiment(args.sample_size,
+                        args.dim_size,
+                        args.effective_rank,
+                        args.n_exp,
+                        epsilons,
+                        args.output,
+                        args.contamination,
+                        m,
+                        intensity=args.intensity,
+                        cont_option=args.contoption)
+        except:
+            print("method {} failed".format(m))
