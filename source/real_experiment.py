@@ -201,42 +201,6 @@ def clean_wine():
     data = (data - numpy.mean(data, axis=0))/numpy.std(data, axis=0)
     return data, []
 
-def clean_countries():
-    data = pd.read_csv('./datasets/countries.csv', sep=';')
-    types = data.iloc[0]
-    data.drop(0, axis=0, inplace=True)
-    string_columns = data.columns[types != 'double']
-    data.drop(string_columns, axis=1, inplace=True)
-    for c in data.columns:
-        data.rename(columns={c: c.replace('&', 'and')}, inplace=True)
-    data=data.astype(float)
-    data.dropna(how='all', axis=0, inplace=True)
-
-    # removing some dimensions
-    cols_to_drop = ['Internet hosts', # almost categorical
-                'Life expectancy at birth(years)', # too concentrated and redundant
-                'Military expenditures - dollar figure', # almost categorical due to US, redundant with relative measure
-                'Natural gas - exports(cu m)', # obvious mixture of gaussian, redundant with other better behaved dimensions
-                'Natural gas - imports(cu m)'] #ibid.
-    data.drop(cols_to_drop, axis=1, inplace=True)
-
-    data.dropna(thresh=150, inplace=True, axis=1)
-    data.dropna(thresh=15, inplace=True, axis=0)
-
-    # log transformations
-    cols_not_to_log = ['GDP - real growth rate(%)']
-    cols_to_log = list(data.columns)
-    for c in cols_not_to_log:
-        cols_to_log.remove(c)
-    for c in cols_to_log:
-        data[c] = numpy.log(data[c])
-
-    data = data.to_numpy()
-    data[data == -numpy.inf] = numpy.nan
-    nan_mask = detect_nan(data)
-    data = (data - numpy.nanmean(data, axis=0))/numpy.nanstd(data, axis=0)
-    return data, nan_mask
-
 # woolridge datasets:
 def clean_barium():
     data = pd.read_csv('./datasets/BARIUM.raw', delimiter=r"\s+", header=None)
