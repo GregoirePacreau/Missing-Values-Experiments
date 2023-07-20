@@ -1,4 +1,9 @@
-# main auxiliary functions for missing values experiments
+#!/usr/bin/env python
+"""
+main auxiliary functions for missing values experiments
+
+Authors: Karim Lounici and Grégoire Pacreau
+"""
 
 import numpy
 import matplotlib.pyplot as plt
@@ -7,6 +12,7 @@ from sklearn.covariance import MinCovDet
 from statsmodels.robust.scale import huber
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import KNNImputer, IterativeImputer
+from sklearn.covariance import MinCovDet
 from time import time
 
 ##### Low rank matrix generation #####
@@ -237,25 +243,32 @@ def mask_union(A,B):
 def apply_estimator(method, X, mask=None, delta=0.7, q=0.99):
     # here mask, if not none, should be ones where outliers and 0 if not
     X[numpy.isnan(X)] = 0
+    missingMask = numpy.isnan(X).astype(int)
     tstart = time()
     if method == "DI":
         _, sigma = DI(X)
+    elif method == "MinCovDet":
+        est = MinCovDet().fit(X)
+        sigma = est.covariance_
     elif method == "TSGS":
         _, sigma, _ = TSGS(X)
     elif method == "DDCMV95":
         # mask must be wether to keep the value, hence is 1 - isOutlier
         isOutlier = DDC(X, 0.95).astype(int)
+        isOutlier = mask_union(isOutlier, missingMask)
         mask = 1 - isOutlier
         delta = mask.sum()/mask.shape[0]/mask.shape[1]
         sigma = estimate_cov(X, delta=delta, mask=mask)
     elif method == "DDCMV90":
         # mask must be wether to keep the value, hence is 1 - isOutlier
         isOutlier = DDC(X, 0.90).astype(int)
+        isOutlier = mask_union(isOutlier, missingMask)
         mask = 1 - isOutlier
         delta = mask.sum()/mask.shape[0]/mask.shape[1]
         sigma = estimate_cov(X, delta=delta, mask=mask)
     elif method == 'DDCMV':
         isOutlier = DDC(X, q)
+        isOutlier = mask_union(isOutlier, missingMask)
         mask = 1 - isOutlier
         delta = mask.sum()/mask.shape[0]/mask.shape[1]
         sigma = estimate_cov(X, delta=delta, mask=mask)

@@ -1,11 +1,16 @@
-# This file allows to communicate with the R packages implementing robust statistics
+#!/usr/bin/env python
+"""
+This file allows to communicate with the R packages implementing robust statistics
+
+Authors: Karim Lounici and Grégoire Pacreau
+"""
 
 import subprocess
 import pandas as pd
 import numpy as np
 import os
 
-def DDC(data, quantile=0.99):
+def DDC(data, quantile=0.99, return_residuals=False):
     # Data is a pandas Dataframe
     if not isinstance(data, pd.DataFrame):
         data = pd.DataFrame(data)
@@ -13,7 +18,7 @@ def DDC(data, quantile=0.99):
     data.to_csv("temp/DDC_data.csv", index=False)
 
     # Calls the script which produces a boolean matrix detecting outliers using DDC
-    os.system("Rscript R_scripts/DDC.R temp/DDC_data.csv {}".format(quantile))
+    os.system("Rscript R_scripts/DDC.R temp/DDC_data.csv {} {}".format(quantile, return_residuals))
 
     res = pd.read_csv("temp/DDC_data_res.csv").to_numpy()
     os.remove("temp/DDC_data.csv")
